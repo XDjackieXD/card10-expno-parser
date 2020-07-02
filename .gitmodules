@@ -1,3 +1,12 @@
 [submodule "diagnosis-keys"]
 	path = diagnosis-keys
 	url = git@github.com:mh-/diagnosis-keys.git
+[submodule "exnostat/micropython-aes"]
+	path = exnostat/micropython-aes
+	url = git@github.com:piaca/micropython-aes.git
+[submodule "micropython-aes"]
+	path = micropython-aes
+	url = git@github.com:piaca/micropython-aes.git
+[submodule "micropython-lib"]
+	path = micropython-lib
+	url = git@github.com:micropython/micropython-lib.git
