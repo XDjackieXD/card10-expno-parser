@@ -32,7 +32,8 @@ UUID = b"\x6f\xfd"
 TIMEOUT = 120
 WRITE_TIMEOUT = 30
 WRITE_THRESHOLD = 10
-FILENAME = "exno.bin"
+EXPNO_FILENAME = "exno.bin"
+TEK_FILENAME = "tek.bin"
 
 MODE_OFF = 0
 MODE_ON_NEW_MAC = 1
@@ -103,6 +104,15 @@ def generate_aem(tx_pwr, aem_key, rpi):
     tx_pwr_norm = int(tx_pwr) + 127 # from -127 to 127 dBm as uint8
     data = struct.pack("<BBBB", version, tx_pwr_norm, 0, 0)
     return encrypt_aem(aem_key, data, rpi)
+
+def write_tek_to_file(tek, tek_interval):
+    global write_count
+
+    write_count += 1
+    print("Writing TEK to flash")
+    with open(TEK_FILENAME, "ab") as outfile:
+        outfile.write(struct.pack("<L16s", tek_interval, tek))
+    print("Write finished")
 
 # BLE TX
 def tx_expno(ble_mac, rpi, aem):
@@ -184,7 +194,7 @@ def write_to_file(data):
 
     write_count += 1
     print("Writing", len(data), "seen MACs into flash...")
-    with open(FILENAME, "ab") as outfile:
+    with open(EXPNO_FILENAME, "ab") as outfile:
         for mac in data:
             outfile.write(struct.pack("<6sHiiiQQ20s", mac, data[mac][1], int(data[mac][2][0]*100), int(data[mac][2][1]*100), int(data[mac][2][2]*100), data[mac][3][0], data[mac][3][1], data[mac][5]))
     print("Write finished")
@@ -329,6 +339,7 @@ while True:
             rpi_key = derive_rpi_key(tek)
             aem_key = derive_aem_key(tek)
             tek_intnum = intnum
+            write_tek_to_file(tek, tek_intnum)
             print("TEK:", bytes2hex(tek))
         print("Generationg new BLE MAC and RPI/AEM...")
         ble_mac = os.urandom(6)
