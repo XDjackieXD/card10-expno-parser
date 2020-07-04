@@ -10,3 +10,6 @@
 [submodule "micropython-lib"]
 	path = micropython-lib
 	url = git@github.com:micropython/micropython-lib.git
+[submodule "pyaes"]
+	path = pyaes
+	url = git@github.com:ricmoo/pyaes.git

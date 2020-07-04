@@ -14,13 +14,14 @@ import power
 import math
 import os
 import sys
+import gc
 
 sys.path.append("/apps/exnosrv/")
 
-# Micropython-AES https://github.com/piaca/micropython-aes, MIT License
-import maes
+# Pure-Python AES https://github.com/ricmoo/pyaes MIT License
+import pyaes
 
-# Micropython-lib https://github.com/micropython/micropython-lib
+# Micropython-lib https://github.com/micropython/micropython-lib MIT License
 import hashlib
 import hmac
 
@@ -87,12 +88,11 @@ def derive_aem_key(tek):
 def encrypt_rpi(rpi_key, interval_number):
     enin = encoded_en_interval_number(interval_number)
     padded_data = "EN-RPI".encode("UTF-8") + bytes([0x00] * 6) + enin
-    cipher = maes.new(rpi_key, maes.MODE_ECB)
+    cipher = pyaes.AESModeOfOperationECB(rpi_key)
     return cipher.encrypt(padded_data)
 
-#TODO: MAES doesn't support CTR mode
 def encrypt_aem(aem_key, aem, rpi):
-    cipher = maes.new(aem_key, maes.MODE_CTR, IV=rpi)
+    cipher = pyaes.AESModeOfOperationCTR(aem_key, counter = pyaes.Counter(initial_value = rpi))
     return cipher.encrypt(aem)
 
 def generate_tek():
@@ -103,6 +103,11 @@ def generate_aem(tx_pwr, aem_key, rpi):
     tx_pwr_norm = int(tx_pwr) + 127 # from -127 to 127 dBm as uint8
     data = struct.pack("<BBBB", version, tx_pwr_norm, 0, 0)
     return encrypt_aem(aem_key, data, rpi)
+
+# BLE TX
+def tx_expno(ble_mac, rpi, aem):
+    print("TX MAC:", bytes2hex(ble_mac, ":"), "RPI:", bytes2hex(rpi), "AEM:", bytes2hex(aem))
+
 
 # ----- Tools for receiving exposure notifications -----
 
@@ -297,20 +302,45 @@ bl_on_time = time.monotonic_ms()
 bl_on = True
 
 
-# code to test crypto
-tek = generate_tek()
-rpi_key = derive_rpi_key(tek)
-aem_key = derive_aem_key(tek)
-intnum = en_interval_number(time.unix_time())
-rpi = encrypt_rpi(rpi_key, intnum)
-aem = generate_aem(20, aem_key, rpi)
-print(tek, rpi_key, aem_key, intnum, rpi, aem)
-
+# Variables for sending Exposure Notifications
+intnum = 0
+intnum_old = 0
+tek = None
+tek_intnum = 0
+rpi_key = None
+aem_key = None
+rpi = None
+aem = None
+ble_mac = None
+tx_pause = 1
 
 while True:
     v_new = buttons.read()
     v = ~v_old & v_new
     v_old = v_new
+
+
+    intnum = en_interval_number(time.unix_time())
+    if intnum != intnum_old:
+        print("Interval Number changed...")
+        if tek == None or (intnum - tek_intnum) >= 144 or ble_mac == None:
+            print("Generating new TEK...")
+            tek = generate_tek()
+            rpi_key = derive_rpi_key(tek)
+            aem_key = derive_aem_key(tek)
+            tek_intnum = intnum
+            print("TEK:", bytes2hex(tek))
+        print("Generationg new BLE MAC and RPI/AEM...")
+        ble_mac = os.urandom(6)
+        rpi = encrypt_rpi(rpi_key, intnum)
+        aem = generate_aem(20, aem_key, rpi)
+        intnum_old = intnum
+
+    tx_pause -= 1
+    if tx_pause == 0:
+        if ble_mac != None and rpi != None and aem != None:
+            tx_expno(ble_mac, rpi, aem)
+        tx_pause = 5
 
     if bl_on and time.monotonic_ms() > bl_on_time + BL_TIMEOUT:
         disp.backlight(0)
@@ -326,7 +356,9 @@ while True:
     if pause == 0:
         if bl_on:
             show_stats()
-        pause = 10
+            gc.collect()
+            print(gc.mem_free())
+        pause = 20
         prune()
 
-    time.sleep(0.1)
+    time.sleep(0.05)

@@ -120,15 +120,6 @@ def sha_init():
     sha_info['digestsize'] = 32
     return sha_info
 
-def sha224_init():
-    sha_info = new_shaobject()
-    sha_info['digest'] = [0xc1059ed8, 0x367cd507, 0x3070dd17, 0xf70e5939, 0xffc00b31, 0x68581511, 0x64f98fa7, 0xbefa4fa4]
-    sha_info['count_lo'] = 0
-    sha_info['count_hi'] = 0
-    sha_info['local'] = 0
-    sha_info['digestsize'] = 28
-    return sha_info
-
 def getbuf(s):
     if isinstance(s, str):
         return s.encode('ascii')
@@ -230,19 +221,6 @@ class sha256(object):
 
     def copy(self):
         new = sha256()
-        new._sha = self._sha.copy()
-        return new
-
-class sha224(sha256):
-    digest_size = digestsize = 28
-
-    def __init__(self, s=None):
-        self._sha = sha224_init()
-        if s:
-            sha_update(self._sha, getbuf(s))
-
-    def copy(self):
-        new = sha224()
         new._sha = self._sha.copy()
         return new
 
