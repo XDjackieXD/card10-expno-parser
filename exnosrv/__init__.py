@@ -101,8 +101,7 @@ def generate_tek():
 
 def generate_aem(tx_pwr, aem_key, rpi):
     version = 0b01000000 # Version 1.0
-    tx_pwr_norm = int(tx_pwr) + 127 # from -127 to 127 dBm as uint8
-    data = struct.pack("<BBBB", version, tx_pwr_norm, 0, 0)
+    data = struct.pack("<BbBB", version, int(tx_pwr), 0, 0)
     return encrypt_aem(aem_key, data, rpi)
 
 def write_tek_to_file(tek, tek_interval):
